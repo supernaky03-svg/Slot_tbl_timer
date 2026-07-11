@@ -1,20 +1,11 @@
 import os
 import asyncio
-import httpx
 from fastapi import FastAPI
+from curl_cffi.requests import AsyncSession # Cloudflare ကို ကျော်ဖြတ်မည့် Library
 
 app = FastAPI()
 
-# ဂိမ်းလည်ပတ်နေသည့် Group များကို မှတ်သားရန်
 active_games = {}
-
-# Browser အယောင်ဆောင်ရန် Header (403 Error မတက်စေရန်)
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Connection": "keep-alive"
-}
 
 # Environment မှ Webhook URLs များကို ဆွဲယူခြင်း
 URL_START = os.getenv("URL_START")
@@ -22,7 +13,6 @@ URL_LOCK = os.getenv("URL_LOCK")
 URL_END = os.getenv("URL_END")
 
 async def custom_sleep(seconds: int, group_id: str):
-    """ဂိမ်းရပ်လိုက်ပါက ချက်ချင်းရပ်တန့်နိုင်ရန် စောင့်ဆိုင်းခြင်း"""
     for _ in range(seconds):
         if not active_games.get(group_id, False):
             return False 
@@ -33,7 +23,8 @@ async def game_loop(group_id: str, duration: int):
     active_games[group_id] = True
     print(f"🚀 Group {group_id} အတွက် {duration} စက္ကန့် ပွဲစဉ် စတင်ပါပြီ...")
     
-    async with httpx.AsyncClient(headers=HEADERS, follow_redirects=True) as client:
+    # 🟢 impersonate="chrome110" ဖြင့် Browser အစစ်ကဲ့သို့ အယောင်ဆောင်ခြင်း
+    async with AsyncSession(impersonate="chrome110") as client:
         while active_games.get(group_id, False):
             try:
                 # ၁။ ပွဲစဉ်စတင်ခြင်း
@@ -49,21 +40,23 @@ async def game_loop(group_id: str, duration: int):
                 # ၂။ လောင်းကြေးပိတ်ခြင်း
                 if URL_LOCK: 
                     print("👉 Calling URL_LOCK...")
-                    await client.get(URL_LOCK)
+                    res = await client.get(URL_LOCK)
+                    print(f"✅ TBL Lock Response: {res.status_code}")
                 
                 if not await custom_sleep(10, group_id): break
                 
                 # ၃။ ရလဒ်ထုတ်ခြင်း
                 if URL_END: 
                     print("👉 Calling URL_END...")
-                    await client.get(URL_END)
+                    res = await client.get(URL_END)
+                    print(f"✅ TBL End Response: {res.status_code}")
                 
                 # နောက်ပွဲမစခင် ၃ စက္ကန့် နားခြင်း
                 if not await custom_sleep(3, group_id): break
                     
             except Exception as e:
                 print(f"❌ Error in group {group_id}: {e}")
-                await asyncio.sleep(5) # Error တက်လျှင် ၅ စက္ကန့်နားပါ
+                await asyncio.sleep(5) 
 
 @app.get("/")
 def ping():
