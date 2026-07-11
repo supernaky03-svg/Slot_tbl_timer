@@ -31,9 +31,9 @@ async def game_loop(group_id: str, duration: int):
     
     while active_games.get(group_id, False):
         try:
-            # ၁။ TBL Bot ကို ပွဲစရန် အချက်ပေးခြင်း
-            print("👉 Sending /sys_startRound")
-            await client.send_message(int(group_id), "/sys_startRound")
+            # ၁။ TBL Bot ကို ပွဲစရန် အချက်ပေးခြင်း (Duration ပါ တစ်ပါတည်း လှမ်းရိုက်ခိုင်းခြင်း)
+            print(f"👉 Sending /sys_startRound {duration}")
+            await client.send_message(int(group_id), f"/sys_startRound {duration}")
             
             if not await custom_sleep(lock_time, group_id): break
             
