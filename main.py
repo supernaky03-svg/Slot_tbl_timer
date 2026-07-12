@@ -3,6 +3,7 @@ import asyncio
 from fastapi import FastAPI
 from telethon import TelegramClient
 from telethon.sessions import StringSession
+from telethon import events
 
 app = FastAPI()
 active_games = {}
@@ -85,3 +86,12 @@ def stop_game(group_id: str):
     print(f"🛑 Group {group_id} ၏ ပွဲစဉ်ကို ရပ်တန့်လိုက်ပါပြီ။")
     return {"status": "stopped"}
 
+# Group ထဲမှာ Admin က /stopGame လို့ ရိုက်တာကို Userbot က စောင့်ဖတ်မည့် ကုဒ်
+@client.on(events.NewMessage(pattern=r'(?i)^/stopGame'))
+async def listen_for_stop(event):
+    group_id = str(event.chat_id)
+    
+    # active_games ဆိုသည်မှာ သင်၏ Loop ကို ထိန်းချုပ်ထားသော Dictionary ဖြစ်ပါသည်
+    if group_id in active_games:
+        active_games[group_id] = False
+        print(f"🛑 Group {group_id} တွင် ဂိမ်းကို ရပ်တန့်ရန် Python Loop ကို ပိတ်လိုက်ပါပြီ။")
